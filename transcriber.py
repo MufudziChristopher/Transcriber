@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+import os
+import time
+import logging
+import numpy as np
+from pydub import AudioSegment
+import tempfile
+from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+import soundfile as sf
+import pyloudnorm
+import noisereduce as nr
+import torch
+import warnings
+import whisper
+
 class RobustSermonTranscriber:
     """Optimized for reliability with African accents"""
     
@@ -60,7 +76,7 @@ class RobustSermonTranscriber:
                 prop_decrease=0.8
             )
             
-            # Loudness normalization - CORRECTED
+            # Loudness normalization
             meter = pyloudnorm.Meter(audio.frame_rate)
             loudness = meter.integrated_loudness(reduced)
             normalized = pyloudnorm.normalize.loudness(reduced, loudness, -20.0)
@@ -119,3 +135,18 @@ class RobustSermonTranscriber:
             for f in os.listdir(self.temp_dir):
                 os.remove(os.path.join(self.temp_dir, f))
             os.rmdir(self.temp_dir)
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input", help="Input audio file")
+    parser.add_argument("-o", "--output", default="transcript.txt", help="Output file")
+    parser.add_argument("-m", "--model", default="base.en", help="Whisper model size")
+    args = parser.parse_args()
+    
+    transcriber = RobustSermonTranscriber(model_size=args.model)
+    success = transcriber.transcribe(args.input, args.output)
+    
+    if not success:
+        print("\nTranscription failed. Check logs for details.")
+        exit(1)
